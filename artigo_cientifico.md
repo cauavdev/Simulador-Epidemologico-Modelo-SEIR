@@ -4,7 +4,7 @@
 **Instituição: UFRPE — Bacharelado em Sistemas de Informação**
 **Disciplina: Sustentabilidade em Sistemas de Informação**
 **Professor: Jones Albuquerque**
-**Data: Maio de 2026**
+**Data: 09 de Maio de 2026**
 **IA utilizada: Claude (Anthropic) — claude.ai**
 
 ---
