@@ -1,4 +1,4 @@
-# 🦠 EpiWatch — Simulador de Doenças Infectocontagiosas
+# 🦠 EpiWatch - Simulador de Doenças Infectocontagiosas
 
 > **Cauã Vitor da Silva Araujo** · Bacharelado em Sistemas de Informação  
 > Disciplina: Sustentabilidade em Sistemas de Informação · Professor: Jones Albuquerque  
