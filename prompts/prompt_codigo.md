@@ -1,0 +1,5 @@
+Código (EpiWatch)
+
+IA utilizada: Claude (Anthropic) — claude.ai
+
+"Você é um desenvolvedor web sênior. Crie uma aplicação web de página única chamada EpiWatch para simular o espalhamento de doenças infectocontagiosas usando o modelo SEIR. A aplicação deve ter duas abas: (1) Simulador Livre com sliders para controlar beta, período de incubação, período infeccioso, tamanho da população, infectados iniciais, dias de simulação, efeito de intervenção e taxas clínicas; deve exibir cards com métricas (R₀, pico, dia do pico, óbitos) e três gráficos: curva SEIR, impacto clínico e comparação com/sem intervenção; e (2) Comparador de Doenças que executa quatro simulações paralelas para COVID-19, Influenza, Sarampo e Ebola com parâmetros reais da literatura. Use HTML, CSS e JavaScript puros com Chart.js via CDN. Design moderno, escuro e profissional. Método de Euler com dt=0,2."

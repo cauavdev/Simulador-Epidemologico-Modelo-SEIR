@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EpiWatch — Simulador de Doenças</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #11141a;
+    --surface2: #181c24;
+    --border: #1f2535;
+    --text: #e8eaf0;
+    --muted: #5a6278;
+    --accent: #00e5ff;
+    --accent2: #ff4d6d;
+    --accent3: #69ff74;
+    --accent4: #ffb830;
+    --covid:    #ff4d6d;
+    --gripe:    #00e5ff;
+    --sarampo:  #ffb830;
+    --ebola:    #a855f7;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Space Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID DE FUNDO ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative; z-index: 1;
+    padding: 2rem 2.5rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .logo-block h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .logo-block h1 span { color: var(--accent); }
+  .logo-block p {
+    font-size: .72rem;
+    color: var(--muted);
+    margin-top: .3rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+
+  .header-author {
+    margin-left: auto;
+    text-align: right;
+    font-size: .7rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .header-author strong { color: var(--text); font-size: .75rem; }
+
+  /* ── TABS ── */
+  .tabs {
+    position: relative; z-index: 1;
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 2.5rem;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: .75rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: .9rem 1.5rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    position: relative;
+    top: 1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── PAINÉIS ── */
+  .panel { display: none; position: relative; z-index: 1; }
+  .panel.active { display: block; }
+
+  /* ════════════════════════════════════
+     PAINEL 1 — SIMULADOR LIVRE
+  ════════════════════════════════════ */
+  .sim-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    min-height: calc(100vh - 130px);
+  }
+
+  /* sidebar */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 1.5rem;
+    overflow-y: auto;
+    max-height: calc(100vh - 130px);
+    position: sticky;
+    top: 0;
+  }
+
+  .preset-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-bottom: 1.5rem;
+  }
+  .preset-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: .65rem;
+    padding: .35rem .8rem;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all .15s;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .preset-btn:hover, .preset-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+  }
+
+  .ctrl-section { margin-bottom: 1.4rem; }
+  .ctrl-label {
+    font-size: .6rem;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--muted);
+    margin-bottom: .8rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ctrl-row { margin-bottom: 1rem; }
+  .ctrl-row label {
+    display: flex;
+    justify-content: space-between;
+    font-size: .68rem;
+    color: var(--text);
+    margin-bottom: .4rem;
+  }
+  .ctrl-row label span {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    color: var(--accent);
+    font-size: .8rem;
+  }
+  .ctrl-row input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 0;
+    outline: none;
+  }
+  .ctrl-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    background: var(--accent);
+    border-radius: 0;
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .ctrl-row small {
+    display: block;
+    font-size: .6rem;
+    color: var(--muted);
+    margin-top: .25rem;
+    font-style: italic;
+  }
+
+  /* charts area */
+  .charts-area {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1rem 1.2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .metric-card.m-r0::before  { background: var(--accent); }
+  .metric-card.m-peak::before { background: var(--accent2); }
+  .metric-card.m-day::before  { background: var(--accent4); }
+  .metric-card.m-end::before  { background: var(--accent3); }
+  .metric-card .mc-label {
+    font-size: .6rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--muted);
+    margin-bottom: .5rem;
+  }
+  .metric-card .mc-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .metric-card.m-r0  .mc-value { color: var(--accent); }
+  .metric-card.m-peak .mc-value { color: var(--accent2); }
+  .metric-card.m-day  .mc-value { color: var(--accent4); }
+  .metric-card.m-end  .mc-value { color: var(--accent3); }
+  .metric-card .mc-sub {
+    font-size: .62rem;
+    color: var(--muted);
+    margin-top: .3rem;
+  }
+
+  .chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.2rem;
+  }
+  .chart-box h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: .8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+  .chart-box canvas { max-height: 260px; }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  /* ════════════════════════════════════
+     PAINEL 2 — COMPARADOR
+  ════════════════════════════════════ */
+  .comp-layout {
+    padding: 2rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .comp-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .comp-header h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: -.5px;
+  }
+  .comp-header p {
+    font-size: .68rem;
+    color: var(--muted);
+    max-width: 480px;
+  }
+
+  .disease-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  .disease-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.2rem;
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+    transition: border-color .2s;
+  }
+  .disease-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .disease-card.covid::before   { background: var(--covid); }
+  .disease-card.gripe::before   { background: var(--gripe); }
+  .disease-card.sarampo::before { background: var(--sarampo); }
+  .disease-card.ebola::before   { background: var(--ebola); }
+  .disease-card:hover { border-color: var(--muted); }
+
+  .disease-card .dc-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: .95rem;
+    margin-bottom: .6rem;
+  }
+  .disease-card.covid   .dc-name { color: var(--covid); }
+  .disease-card.gripe   .dc-name { color: var(--gripe); }
+  .disease-card.sarampo .dc-name { color: var(--sarampo); }
+  .disease-card.ebola   .dc-name { color: var(--ebola); }
+
+  .dc-stat { font-size: .65rem; color: var(--muted); margin-bottom: .2rem; }
+  .dc-stat strong { color: var(--text); font-size: .72rem; }
+
+  .comp-chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+  }
+  .comp-chart-wrap h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1.2rem;
+  }
+  .comp-chart-wrap canvas { max-height: 340px; }
+
+  .comp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .7rem;
+  }
+  .comp-table th {
+    text-align: left;
+    font-size: .6rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+    padding: .6rem .8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .comp-table td {
+    padding: .7rem .8rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .comp-table tr:hover td { background: var(--surface2); }
+  .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: .5rem;
+    vertical-align: middle;
+  }
+
+  /* ── RODAPÉ ── */
+  footer {
+    position: relative; z-index: 1;
+    padding: 1rem 2.5rem;
+    border-top: 1px solid var(--border);
+    font-size: .6rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* responsivo básico */
+  @media (max-width: 900px) {
+    .sim-layout { grid-template-columns: 1fr; }
+    .sidebar { max-height: none; position: static; }
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+    .charts-grid { grid-template-columns: 1fr; }
+    .disease-cards { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <h1>Epi<span>Watch</span></h1>
+    <p>Simulador de Doenças Infectocontagiosas · Modelo SEIR</p>
+  </div>
+  <div class="header-author">
+    <strong>Cauã Vitor da Silva Araujo</strong><br>
+    Sistemas de Informação · 1º Semestre<br>
+    IA utilizada: Claude (Anthropic)
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('simulador', this)">Simulador Livre</button>
+  <button class="tab-btn"       onclick="switchTab('comparador', this)">Comparador de Doenças</button>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAINEL 1 — SIMULADOR LIVRE
+════════════════════════════════════════════ -->
+<div id="panel-simulador" class="panel active">
+  <div class="sim-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <div class="preset-bar">
+        <span style="font-size:.6rem;color:var(--muted);align-self:center;text-transform:uppercase;letter-spacing:.1em;margin-right:.3rem;">Preset:</span>
+        <button class="preset-btn active" onclick="aplicarPreset('covid',this)">COVID-19</button>
+        <button class="preset-btn" onclick="aplicarPreset('gripe',this)">Gripe</button>
+        <button class="preset-btn" onclick="aplicarPreset('sarampo',this)">Sarampo</button>
+        <button class="preset-btn" onclick="aplicarPreset('ebola',this)">Ebola</button>
+        <button class="preset-btn" onclick="aplicarPreset('custom',this)">Custom</button>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-label">População</div>
+        <div class="ctrl-row">
+          <label>Tamanho da população <span id="v-pop">100.000</span></label>
+          <input type="range" id="s-pop" min="1000" max="10000000" step="1000" value="100000"
+            oninput="fmtPop(this.value);simular()">
+          <small>Total de habitantes da região simulada</small>
+        </div>
+        <div class="ctrl-row">
+          <label>Infectados iniciais <span id="v-i0">10</span></label>
+          <input type="range" id="s-i0" min="1" max="5000" step="1" value="10"
+            oninput="document.getElementById('v-i0').textContent=Number(this.value).toLocaleString('pt-BR');simular()">
+          <small>Casos no Dia 0 (origem do surto)</small>
+        </div>
+        <div class="ctrl-row">
+          <label>Dias de simulação <span id="v-dias">300</span></label>
+          <input type="range" id="s-dias" min="30" max="730" step="1" value="300"
+            oninput="document.getElementById('v-dias').textContent=this.value;simular()">
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-label">Transmissão</div>
+        <div class="ctrl-row">
+          <label>Taxa de transmissão β <span id="v-beta">0.25</span></label>
+          <input type="range" id="s-beta" min="0.01" max="2" step="0.01" value="0.25"
+            oninput="document.getElementById('v-beta').textContent=this.value;simular()">
+          <small>Contatos infecciosos por dia</small>
+        </div>
+        <div class="ctrl-row">
+          <label>Período de incubação (dias) <span id="v-inc">5</span></label>
+          <input type="range" id="s-inc" min="1" max="30" step="0.5" value="5"
+            oninput="document.getElementById('v-inc').textContent=this.value;simular()">
+          <small>σ = 1 / incubação</small>
+        </div>
+        <div class="ctrl-row">
+          <label>Período infeccioso (dias) <span id="v-inf">14</span></label>
+          <input type="range" id="s-inf" min="1" max="60" step="0.5" value="14"
+            oninput="document.getElementById('v-inf').textContent=this.value;simular()">
+          <small>γ = 1 / período infeccioso</small>
+        </div>
+        <div class="ctrl-row">
+          <label>Intervenção (redução de β) <span id="v-int">0%</span></label>
+          <input type="range" id="s-int" min="0" max="0.99" step="0.01" value="0"
+            oninput="document.getElementById('v-int').textContent=Math.round(this.value*100)+'%';simular()">
+          <small>Simula quarentena, máscaras etc.</small>
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-label">Clínico</div>
+        <div class="ctrl-row">
+          <label>Taxa de hospitalização <span id="v-hosp">5%</span></label>
+          <input type="range" id="s-hosp" min="0" max="100" step="0.5" value="5"
+            oninput="document.getElementById('v-hosp').textContent=this.value+'%';simular()">
+        </div>
+        <div class="ctrl-row">
+          <label>Taxa de mortalidade <span id="v-mort">2%</span></label>
+          <input type="range" id="s-mort" min="0" max="80" step="0.1" value="2"
+            oninput="document.getElementById('v-mort').textContent=this.value+'%';simular()">
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- GRÁFICOS -->
+    <div class="charts-area">
+      <div class="metrics-row">
+        <div class="metric-card m-r0">
+          <div class="mc-label">R₀ (Reprodução básica)</div>
+          <div class="mc-value" id="m-r0">—</div>
+          <div class="mc-sub" id="m-r0-status">—</div>
+        </div>
+        <div class="metric-card m-peak">
+          <div class="mc-label">Pico de infectados</div>
+          <div class="mc-value" id="m-peak">—</div>
+          <div class="mc-sub" id="m-peak-pct">— % da população</div>
+        </div>
+        <div class="metric-card m-day">
+          <div class="mc-label">Dia do pico</div>
+          <div class="mc-value" id="m-day">—</div>
+          <div class="mc-sub">dias após o início</div>
+        </div>
+        <div class="metric-card m-end">
+          <div class="mc-label">Total de óbitos</div>
+          <div class="mc-value" id="m-deaths">—</div>
+          <div class="mc-sub" id="m-deaths-pct">— % da população</div>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <h3>Curva epidêmica — Modelo SEIR</h3>
+        <canvas id="chart-seir"></canvas>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3>Impacto no sistema de saúde</h3>
+          <canvas id="chart-clinical"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Efeito da intervenção sobre infectados</h3>
+          <canvas id="chart-intervention"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAINEL 2 — COMPARADOR
+════════════════════════════════════════════ -->
+<div id="panel-comparador" class="panel">
+  <div class="comp-layout">
+
+    <div class="comp-header">
+      <div>
+        <h2>Comparativo entre Doenças Reais</h2>
+        <p>Simulação paralela de 4 doenças com parâmetros epidemiológicos aproximados da literatura. Mesma população de 100.000 habitantes e 10 casos iniciais.</p>
+      </div>
+    </div>
+
+    <div class="disease-cards" id="disease-cards"></div>
+
+    <div class="comp-chart-wrap">
+      <h3>Curva de infectados simultâneos — 365 dias</h3>
+      <canvas id="chart-comp-infected"></canvas>
+    </div>
+
+    <div class="comp-chart-wrap">
+      <h3>Tabela comparativa de métricas</h3>
+      <table class="comp-table" id="comp-table"></table>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <span>EpiWatch · Cauã Vitor da Silva Araujo · Sistemas de Informação</span>
+  <span>Modelo SEIR · Método de Euler · Claude (Anthropic)</span>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  DADOS DOS PRESETS — parâmetros reais aproximados
+// ═══════════════════════════════════════════════════════
+const PRESETS = {
+  covid:   { beta:0.25, inc:5,  inf:14, hosp:5,   mort:1.8, label:'COVID-19',  cor:'#ff4d6d' },
+  gripe:   { beta:0.50, inc:2,  inf:3,  hosp:1,   mort:0.1, label:'Influenza', cor:'#00e5ff' },
+  sarampo: { beta:1.00, inc:10, inf:7,  hosp:0.3, mort:0.2, label:'Sarampo',   cor:'#ffb830' },
+  ebola:   { beta:0.21, inc:8,  inf:10, hosp:70,  mort:60,  label:'Ebola',     cor:'#a855f7' },
+  custom:  { beta:0.30, inc:5,  inf:10, hosp:5,   mort:2,   label:'Custom',    cor:'#69ff74' },
+};
+
+// ═══════════════════════════════════════════════════════
+//  MODELO SEIR — Método de Euler
+// ═══════════════════════════════════════════════════════
+function modeloSEIR(N, I0, beta, sigma, gamma, dias) {
+  const S=[],E=[],I=[],R=[];
+  S[0]=N-I0; E[0]=0; I[0]=I0; R[0]=0;
+  const dt=0.2, steps=Math.round(dias/dt);
+  let s=S[0],e=E[0],i=I[0],r=R[0];
+  const hist={S:[s],E:[e],I:[i],R:[r],dias:[0]};
+  let dia=0;
+  for(let t=0;t<steps;t++){
+    const novaExposicao = beta*s*i/N;
+    const novaInfeccao  = sigma*e;
+    const recuperacao   = gamma*i;
+    s += (-novaExposicao)*dt;
+    e += (novaExposicao - novaInfeccao)*dt;
+    i += (novaInfeccao  - recuperacao)*dt;
+    r += recuperacao*dt;
+    s=Math.max(0,s); e=Math.max(0,e);
+    i=Math.max(0,i); r=Math.min(N,r);
+    if((t+1)%(1/dt)===0){ // 1 vez por dia
+      dia++;
+      hist.S.push(s); hist.E.push(e);
+      hist.I.push(i); hist.R.push(r);
+      hist.dias.push(dia);
+    }
+  }
+  return hist;
+}
+
+// ═══════════════════════════════════════════════════════
+//  ESTADO DOS GRÁFICOS
+// ═══════════════════════════════════════════════════════
+let chartSEIR=null, chartClin=null, chartInter=null, chartComp=null;
+
+function destroyChart(c){ if(c){ c.destroy(); } }
+
+// ═══════════════════════════════════════════════════════
+//  SIMULAÇÃO PRINCIPAL (Painel 1)
+// ═══════════════════════════════════════════════════════
+function simular(){
+  const N    = +document.getElementById('s-pop').value;
+  const I0   = +document.getElementById('s-i0').value;
+  const dias = +document.getElementById('s-dias').value;
+  const beta = +document.getElementById('s-beta').value;
+  const inc  = +document.getElementById('s-inc').value;
+  const inf  = +document.getElementById('s-inf').value;
+  const interv= +document.getElementById('s-int').value;
+  const hospP = +document.getElementById('s-hosp').value/100;
+  const mortP = +document.getElementById('s-mort').value/100;
+
+  const sigma = 1/inc;
+  const gamma = 1/inf;
+  const betaEfetivo = beta*(1-interv);
+
+  const h = modeloSEIR(N,I0,betaEfetivo,sigma,gamma,dias);
+  const hSem = modeloSEIR(N,I0,beta,sigma,gamma,dias); // sem intervenção
+
+  // Métricas
+  const R0 = beta/gamma;
+  const peakI = Math.max(...h.I);
+  const peakDay = h.I.indexOf(peakI);
+  const totalDeaths = h.R[h.R.length-1]*mortP;
+
+  document.getElementById('m-r0').textContent = R0.toFixed(2);
+  document.getElementById('m-r0-status').textContent = R0>1 ? '▲ Epidemia em expansão' : '▼ Epidemia controlada';
+  document.getElementById('m-peak').textContent = fmt(peakI);
+  document.getElementById('m-peak-pct').textContent = (peakI/N*100).toFixed(1)+'% da população';
+  document.getElementById('m-day').textContent = peakDay;
+  document.getElementById('m-deaths').textContent = fmt(totalDeaths);
+  document.getElementById('m-deaths-pct').textContent = (totalDeaths/N*100).toFixed(2)+'% da população';
+
+  const labels = h.dias;
+
+  // ── Gráfico 1: SEIR ──
+  destroyChart(chartSEIR);
+  chartSEIR = new Chart(document.getElementById('chart-seir').getContext('2d'),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'Suscetíveis',  data:h.S, borderColor:'#5a6278', backgroundColor:'rgba(90,98,120,.07)',  fill:true, pointRadius:0, borderWidth:1.5},
+        {label:'Expostos',     data:h.E, borderColor:'#ffb830', backgroundColor:'rgba(255,184,48,.08)', fill:true, pointRadius:0, borderWidth:2},
+        {label:'Infectados',   data:h.I, borderColor:'#ff4d6d', backgroundColor:'rgba(255,77,109,.1)',  fill:true, pointRadius:0, borderWidth:2.5},
+        {label:'Recuperados',  data:h.R, borderColor:'#69ff74', backgroundColor:'rgba(105,255,116,.06)',fill:true, pointRadius:0, borderWidth:1.5},
+      ]
+    },
+    options: chartOpts('Pessoas','Dias')
+  });
+
+  // ── Gráfico 2: Clínico ──
+  const hospitalizados = h.I.map(v=>v*hospP);
+  const obitos = h.R.map(v=>v*mortP);
+  destroyChart(chartClin);
+  chartClin = new Chart(document.getElementById('chart-clinical').getContext('2d'),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'Hospitalizados',data:hospitalizados,borderColor:'#a855f7',backgroundColor:'rgba(168,85,247,.1)',fill:true,pointRadius:0,borderWidth:2},
+        {label:'Óbitos acum.', data:obitos,         borderColor:'#ff4d6d',backgroundColor:'rgba(255,77,109,.07)',fill:true,pointRadius:0,borderWidth:2},
+      ]
+    },
+    options: chartOpts('Pessoas','Dias')
+  });
+
+  // ── Gráfico 3: Com vs Sem intervenção ──
+  destroyChart(chartInter);
+  chartInter = new Chart(document.getElementById('chart-intervention').getContext('2d'),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:`Sem intervenção (β=${beta})`,data:hSem.I,borderColor:'#ff4d6d',pointRadius:0,borderWidth:2,borderDash:[]},
+        {label:`Com intervenção (β=${betaEfetivo.toFixed(2)})`,data:h.I,borderColor:'#69ff74',pointRadius:0,borderWidth:2},
+      ]
+    },
+    options: chartOpts('Infectados','Dias')
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  COMPARADOR (Painel 2)
+// ═══════════════════════════════════════════════════════
+function renderComparador(){
+  const N=100000, I0=10, dias=365;
+  const keys=['covid','gripe','sarampo','ebola'];
+  const resultados={};
+
+  keys.forEach(k=>{
+    const p=PRESETS[k];
+    const h=modeloSEIR(N,I0,p.beta,1/p.inc,1/p.inf,dias);
+    const R0=(p.beta*p.inf).toFixed(2);
+    const peakI=Math.max(...h.I);
+    const peakDay=h.I.indexOf(peakI);
+    const obitos=h.R[h.R.length-1]*(p.mort/100);
+    resultados[k]={h,R0,peakI,peakDay,obitos,p};
+  });
+
+  // Cards
+  const cardsEl=document.getElementById('disease-cards');
+  cardsEl.innerHTML='';
+  keys.forEach(k=>{
+    const r=resultados[k];
+    cardsEl.innerHTML+=`
+    <div class="disease-card ${k}">
+      <div class="dc-name">${r.p.label}</div>
+      <div class="dc-stat">R₀: <strong>${r.R0}</strong></div>
+      <div class="dc-stat">Pico: <strong>${fmt(r.peakI)} pessoas</strong></div>
+      <div class="dc-stat">Dia do pico: <strong>${r.peakDay}º dia</strong></div>
+      <div class="dc-stat">Óbitos estimados: <strong>${fmt(Math.round(r.obitos))}</strong></div>
+      <div class="dc-stat">β=${r.p.beta} | γ=1/${r.p.inf} | σ=1/${r.p.inc}</div>
+    </div>`;
+  });
+
+  // Gráfico comparativo
+  const labels=resultados.covid.h.dias;
+  destroyChart(chartComp);
+  chartComp = new Chart(document.getElementById('chart-comp-infected').getContext('2d'),{
+    type:'line',
+    data:{
+      labels,
+      datasets: keys.map(k=>({
+        label: resultados[k].p.label,
+        data: resultados[k].h.I,
+        borderColor: resultados[k].p.cor,
+        backgroundColor: 'transparent',
+        pointRadius:0,
+        borderWidth:2.5,
+      }))
+    },
+    options: chartOpts('Infectados simultâneos','Dias')
+  });
+
+  // Tabela
+  const tabela=document.getElementById('comp-table');
+  tabela.innerHTML=`
+  <tr>
+    <th>Doença</th><th>R₀</th><th>Pico de infectados</th>
+    <th>% da pop.</th><th>Dia do pico</th><th>Óbitos estimados</th><th>Mortalidade config.</th>
+  </tr>`;
+  keys.forEach(k=>{
+    const r=resultados[k];
+    tabela.innerHTML+=`<tr>
+      <td><span class="dot" style="background:${r.p.cor}"></span>${r.p.label}</td>
+      <td>${r.R0}</td>
+      <td>${fmt(Math.round(r.peakI))}</td>
+      <td>${(r.peakI/N*100).toFixed(1)}%</td>
+      <td>${r.peakDay}º</td>
+      <td>${fmt(Math.round(r.obitos))}</td>
+      <td>${r.p.mort}%</td>
+    </tr>`;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  UTILITÁRIOS
+// ═══════════════════════════════════════════════════════
+function fmt(n){ return Math.round(n).toLocaleString('pt-BR'); }
+
+function fmtPop(v){
+  document.getElementById('v-pop').textContent=Number(v).toLocaleString('pt-BR');
+}
+
+function aplicarPreset(key, btn){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const p=PRESETS[key];
+  setSlider('s-beta', p.beta, 'v-beta', v=>v);
+  setSlider('s-inc',  p.inc,  'v-inc',  v=>v);
+  setSlider('s-inf',  p.inf,  'v-inf',  v=>v);
+  setSlider('s-hosp', p.hosp, 'v-hosp', v=>v+'%');
+  setSlider('s-mort', p.mort, 'v-mort', v=>v+'%');
+  simular();
+}
+
+function setSlider(id, val, lblId, fmt){
+  const el=document.getElementById(id);
+  el.value=val;
+  document.getElementById(lblId).textContent=fmt(val);
+}
+
+function chartOpts(yLabel, xLabel){
+  return {
+    responsive:true,
+    maintainAspectRatio:true,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{
+        labels:{
+          color:'#5a6278',
+          font:{family:'Space Mono',size:10},
+          boxWidth:12,
+        }
+      },
+      tooltip:{
+        backgroundColor:'#11141a',
+        borderColor:'#1f2535',
+        borderWidth:1,
+        titleColor:'#e8eaf0',
+        bodyColor:'#5a6278',
+        titleFont:{family:'Syne',weight:'700'},
+        bodyFont:{family:'Space Mono',size:11},
+        callbacks:{
+          label:ctx=>' '+ctx.dataset.label+': '+Math.round(ctx.parsed.y).toLocaleString('pt-BR')
+        }
+      }
+    },
+    scales:{
+      x:{
+        ticks:{color:'#3a4055',font:{family:'Space Mono',size:9},maxTicksLimit:10},
+        grid:{color:'rgba(31,37,53,.8)'},
+        title:{display:true,text:xLabel,color:'#3a4055',font:{family:'Space Mono',size:9}}
+      },
+      y:{
+        ticks:{color:'#3a4055',font:{family:'Space Mono',size:9},
+          callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v},
+        grid:{color:'rgba(31,37,53,.8)'},
+        title:{display:true,text:yLabel,color:'#3a4055',font:{family:'Space Mono',size:9}}
+      }
+    }
+  };
+}
+
+function switchTab(id, btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-'+id).classList.add('active');
+  if(id==='comparador') renderComparador();
+}
+
+// INIT
+simular();
+</script>
+</body>
+</html>
